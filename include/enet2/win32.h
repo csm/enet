@@ -53,6 +53,10 @@ typedef fd_set ENetSocketSet;
 #define ENET_SOCKETSET_REMOVE(sockset, socket) FD_CLEAR (socket, & (sockset))
 #define ENET_SOCKETSET_CHECK(sockset, socket)  FD_ISSET (socket, & (sockset))
 
+#ifndef AI_ADDRCONFIG
+#define AI_ADDRCONFIG 0x0400 /* AI_ADDRCONFIG is not defined everywhere */
+#endif
+
 #endif /* __ENET_WIN32_H__ */
 
 

@@ -5,7 +5,31 @@
 #define ENET_BUILDING_LIB 1
 #include <string.h>
 #include <time.h>
-#include "enet/enet.h"
+#include "enet2/enet.h"
+
+static ENetSocket
+enet_socket_create_bind (const ENetAddress * address, ENetAddressFamily family)
+{
+    ENetSocket socket = enet_socket_create (ENET_SOCKET_TYPE_DATAGRAM, family);
+    if (socket == ENET_SOCKET_NULL)
+        return ENET_SOCKET_NULL;
+
+    /* This is not a conditional bind anymore,
+     * because WSARecvFrom returned WSAEINVAL on the IPv6 socket.
+     * TODO: Check for it's consequences. */
+    if (enet_socket_bind (socket, address, family) < 0)
+    {
+        enet_socket_destroy (socket);
+        return ENET_SOCKET_NULL;
+    }
+
+    enet_socket_set_option (socket, ENET_SOCKOPT_NONBLOCK, 1);
+    enet_socket_set_option (socket, ENET_SOCKOPT_BROADCAST, 1);
+    enet_socket_set_option (socket, ENET_SOCKOPT_RCVBUF, ENET_HOST_RECEIVE_BUFFER_SIZE);
+    enet_socket_set_option (socket, ENET_SOCKOPT_SNDBUF, ENET_HOST_SEND_BUFFER_SIZE);
+
+    return socket;
+}
 
 /** @defgroup host ENet host functions
     @{
@@ -31,6 +55,7 @@ enet_host_create (const ENetAddress * address, size_t peerCount, size_t channelL
 {
     ENetHost * host;
     ENetPeer * currentPeer;
+    int family;
 
     if (peerCount > ENET_PROTOCOL_MAXIMUM_PEER_ID)
       return NULL;
@@ -48,22 +73,23 @@ enet_host_create (const ENetAddress * address, size_t peerCount, size_t channelL
     }
     memset (host -> peers, 0, peerCount * sizeof (ENetPeer));
 
-    host -> socket = enet_socket_create (ENET_SOCKET_TYPE_DATAGRAM);
-    if (host -> socket == ENET_SOCKET_NULL || (address != NULL && enet_socket_bind (host -> socket, address) < 0))
+    family = (address == NULL || !memcmp (& address -> host, & ENET_HOST_ANY, sizeof (ENetHostAddress))) ?
+        ENET_IPV4 | ENET_IPV6 :
+        enet_get_address_family (address);
+
+    host -> socket4 = (family & ENET_IPV4) ?
+      enet_socket_create_bind (address, ENET_IPV4) :
+      ENET_SOCKET_NULL;
+    host -> socket6 = (family & ENET_IPV6) ?
+      enet_socket_create_bind (address, ENET_IPV6) :
+      ENET_SOCKET_NULL;
+
+    if (host -> socket4 == ENET_SOCKET_NULL && host -> socket6 == ENET_SOCKET_NULL)
     {
-       if (host -> socket != ENET_SOCKET_NULL)
-         enet_socket_destroy (host -> socket);
-
-       enet_free (host -> peers);
-       enet_free (host);
-
-       return NULL;
+        enet_free (host -> peers);
+        enet_free (host);
+        return NULL;
     }
-
-    enet_socket_set_option (host -> socket, ENET_SOCKOPT_NONBLOCK, 1);
-    enet_socket_set_option (host -> socket, ENET_SOCKOPT_BROADCAST, 1);
-    enet_socket_set_option (host -> socket, ENET_SOCKOPT_RCVBUF, ENET_HOST_RECEIVE_BUFFER_SIZE);
-    enet_socket_set_option (host -> socket, ENET_SOCKOPT_SNDBUF, ENET_HOST_SEND_BUFFER_SIZE);
 
     if (address != NULL)
       host -> address = * address;
@@ -133,7 +159,10 @@ enet_host_destroy (ENetHost * host)
 {
     ENetPeer * currentPeer;
 
-    enet_socket_destroy (host -> socket);
+    if (host -> socket4 != ENET_SOCKET_NULL)
+      enet_socket_destroy (host -> socket4);
+    if (host -> socket6 != ENET_SOCKET_NULL)
+      enet_socket_destroy (host -> socket6);
 
     for (currentPeer = host -> peers;
          currentPeer < & host -> peers [host -> peerCount];
