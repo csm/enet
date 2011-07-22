@@ -1,5 +1,5 @@
-AC_INIT([libenet], [1.3.3])
-AC_CONFIG_SRCDIR([include/enet/enet.h])
+AC_INIT([libenet2], [1.0.0])
+AC_CONFIG_SRCDIR([include/enet2/enet.h])
 AM_INIT_AUTOMAKE([foreign])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -21,9 +21,14 @@ AC_CHECK_TYPE(socklen_t, [AC_DEFINE(HAS_SOCKLEN_T)], ,
               #include <sys/socket.h>
 )
 
+AC_CHECK_TYPE(struct sockaddr_in6, [AC_DEFINE(HAS_IPV6)], ,
+              #include <sys/types.h>
+              #include <netinet/in.h>
+)
+
 AC_EGREP_HEADER(MSG_MAXIOVLEN, /usr/include/sys/socket.h, AC_DEFINE(ENET_BUFFER_MAXIMUM, [MSG_MAXIOVLEN]))
 AC_EGREP_HEADER(MSG_MAXIOVLEN, socket.h, AC_DEFINE(ENET_BUFFER_MAXIMUM, [MSG_MAXIOVLEN]))
 
 AC_CONFIG_FILES([Makefile
-	libenet.pc])
+	libenet2.pc])
 AC_OUTPUT
