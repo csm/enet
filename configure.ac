@@ -21,11 +21,6 @@ AC_CHECK_TYPE(socklen_t, [AC_DEFINE(HAS_SOCKLEN_T)], ,
               #include <sys/socket.h>
 )
 
-AC_CHECK_TYPE(struct sockaddr_in6, [AC_DEFINE(HAS_IPV6)], ,
-              #include <sys/types.h>
-              #include <netinet/in.h>
-)
-
 AC_EGREP_HEADER(MSG_MAXIOVLEN, /usr/include/sys/socket.h, AC_DEFINE(ENET_BUFFER_MAXIMUM, [MSG_MAXIOVLEN]))
 AC_EGREP_HEADER(MSG_MAXIOVLEN, socket.h, AC_DEFINE(ENET_BUFFER_MAXIMUM, [MSG_MAXIOVLEN]))
 
